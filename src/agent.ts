@@ -1,67 +1,26 @@
-import { ChatGoogleGenerativeAI } from "@langchain/google-genai";
-import { createAgent, tool } from "langchain";
-import * as z from "zod";
+import { createDemoAgent } from "./agents/demo-agent.js";
 
-// Initialize the Google Gemini model
-const model = new ChatGoogleGenerativeAI({
-  model: "gemini-2.0-flash-exp",
-  temperature: 0,
-  apiKey: process.env.GOOGLE_API_KEY,
-});
+/**
+ * Main entry point for the agent application
+ *
+ * This file imports and exports the primary agent(s) for the application.
+ * The exported `graph` is used by LangGraph CLI (langgraph.json) to register
+ * the agent as an entry point accessible via the API.
+ */
 
-// Define a simple weather tool
-const getWeather = tool(
-  async (input) => {
-    return `It's always sunny in ${input.city}!`;
-  },
-  {
-    name: "get_weather",
-    description: "Get the weather for a given city",
-    schema: z.object({
-      city: z.string().describe("The city to get the weather for"),
-    }),
-  }
-);
+// Create the intake agent instance
+const agent = createDemoAgent();
 
-// Define another example tool - calculator
-const calculator = tool(
-  async (input) => {
-    const { operation, a, b } = input;
-    switch (operation) {
-      case "add":
-        return `${a} + ${b} = ${a + b}`;
-      case "subtract":
-        return `${a} - ${b} = ${a - b}`;
-      case "multiply":
-        return `${a} * ${b} = ${a * b}`;
-      case "divide":
-        return `${a} / ${b} = ${a / b}`;
-      default:
-        return "Unknown operation";
-    }
-  },
-  {
-    name: "calculator",
-    description: "Perform basic arithmetic operations",
-    schema: z.object({
-      operation: z.enum(["add", "subtract", "multiply", "divide"]),
-      a: z.number().describe("First number"),
-      b: z.number().describe("Second number"),
-    }),
-  }
-);
-
-// Create the agent with Google Gemini
-const agent = createAgent({
-  model,
-  tools: [getWeather, calculator],
-  systemPrompt: "You are a helpful assistant that can check weather and do calculations.",
-});
-
-// Export the graph for LangSmith Studio
+// Export the graph for LangSmith Studio and API access
 export const graph = agent;
 
-// Main function to run the agent (only runs when executed directly)
+/**
+ * Main function to run the agent (only runs when executed directly)
+ *
+ * This demonstrates how to invoke the agent programmatically.
+ * When running via `bun run src/agent.ts`, this will execute.
+ * When running via LangGraph Studio, only the exported `graph` is used.
+ */
 async function main() {
   console.log("=== Google Gemini Agent Demo ===\n");
 
@@ -71,7 +30,7 @@ async function main() {
     messages: [{ role: "user", content: "What's the weather in Tokyo?" }],
   });
   console.log("Response:", result1.messages[result1.messages.length - 1].content);
-  console.log("\n---\n");
+  console.log();
 
   // Example 2: Calculator
   console.log("Query 2: Math calculation");
@@ -79,10 +38,10 @@ async function main() {
     messages: [{ role: "user", content: "What is 25 multiplied by 4?" }],
   });
   console.log("Response:", result2.messages[result2.messages.length - 1].content);
-  console.log("\n---\n");
+  console.log();
 
   // Example 3: Combined query
-  console.log("Query 3: Combined query");
+  console.log("Query 3: Combined weather and math");
   const result3 = await agent.invoke({
     messages: [{
       role: "user",

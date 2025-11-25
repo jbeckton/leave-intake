@@ -10,6 +10,7 @@
     "npm:ai@5.0.102": "5.0.102_zod@4.1.13",
     "npm:langchain@1.1.1": "1.1.1_@langchain+core@1.1.0__zod@4.1.13_zod@4.1.13",
     "npm:tsx@^4.20.6": "4.20.6",
+    "npm:typescript@5.9.3": "5.9.3",
     "npm:typescript@^5.9.3": "5.9.3",
     "npm:zod@4.1.13": "4.1.13"
   },

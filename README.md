@@ -81,12 +81,73 @@ For a full chat interface, use the [Agent Chat UI](https://docs.langchain.com/os
 ```
 leave-intake-poc/
 ├── src/
-│   └── agent.ts          # Main agent implementation
-├── .env                  # Environment variables (not in git)
-├── langgraph.json        # LangGraph CLI configuration
-├── package.json          # Project dependencies and scripts
-└── README.md            # This file
+│   ├── agents/              # All agent implementations
+│   │   ├── demo-agent.ts    # Demo agent with weather and calculator
+│   │   └── README.md        # Guide for creating and managing agents
+│   ├── tools/               # Shared tools
+│   │   ├── weather-tool.ts  # Weather checking tool
+│   │   ├── calculator-tool.ts # Calculator tool
+│   │   └── index.ts         # Tool exports
+│   ├── utils/               # Shared utilities
+│   │   ├── models.ts        # Model configurations (Gemini setup)
+│   │   └── state.ts         # Shared state type definitions
+│   └── agent.ts             # Main entry point (imports agents)
+├── .env                     # Environment variables (not in git)
+├── langgraph.json           # LangGraph CLI configuration
+├── package.json             # Project dependencies and scripts
+├── plan.md                  # Multi-agent architecture plan
+└── README.md               # This file
 ```
+
+## Multi-Agent Architecture
+
+This project is structured to support multiple agents following LangChain's recommended patterns:
+
+### Key Concepts
+
+**Entry Point Agents:**
+- Defined in [langgraph.json](langgraph.json) under the `graphs` object
+- Accessible via API at `http://localhost:2024`
+- Each creates an "assistant" that can be invoked via API
+- Example: Main supervisor, independent services
+
+**Sub-Agents:**
+- Regular TypeScript modules in [src/agents/](src/agents/)
+- Imported and used by entry point agents
+- Not directly accessible via API
+- Example: Specialized workers coordinated by a supervisor
+
+### Supported Patterns
+
+**Pattern 1: Supervisor (Tool Calling)** - *Recommended for this project*
+- Single entry point coordinates multiple sub-agents
+- Sub-agents wrapped as tools
+- Centralized workflow control
+- Best for: Structured processes like leave intake
+
+**Pattern 2: Handoffs**
+- Multiple independent entry point agents
+- Agents transfer control between each other
+- Direct user interaction with active agent
+- Best for: Multi-domain conversations
+
+**Pattern 3: Hybrid** (combines both patterns)
+
+### Adding New Agents
+
+See [src/agents/README.md](src/agents/README.md) for comprehensive guides on:
+- Creating new agents (entry points and sub-agents)
+- Adding/removing entry points in langgraph.json
+- API routing and invocation
+- Multi-agent patterns and best practices
+
+### For Leave Intake POC
+
+The current structure uses Pattern 1 (Supervisor) with a single demo agent. Future development will add:
+- Leave intake sub-agent (wizard steps, form validation)
+- Approval sub-agent (approval workflow)
+- Notification sub-agent (user notifications)
+- Supervisor agent (coordinates the above)
 
 ## Example Usage
 
@@ -112,10 +173,15 @@ Agent: The weather in Paris is sunny. And 100 divided by 5 is 20.
 
 ## Adding Custom Tools
 
-To add your own tools, edit `src/agent.ts`:
+Tools are now organized in the [src/tools/](src/tools/) directory. To add a new tool:
+
+1. Create a new file in `src/tools/` (e.g., `my-tool.ts`):
 
 ```typescript
-const myTool = tool(
+import { tool } from "langchain";
+import * as z from "zod";
+
+export const myTool = tool(
   async (input) => {
     // Your tool logic here
     return `Result: ${input.param}`;
@@ -128,11 +194,22 @@ const myTool = tool(
     }),
   }
 );
+```
 
-// Add to the agent
+2. Export from [src/tools/index.ts](src/tools/index.ts):
+
+```typescript
+export { myTool } from "./my-tool";
+```
+
+3. Use in your agent:
+
+```typescript
+import { myTool } from "../tools";
+
 const agent = createAgent({
   model,
-  tools: [getWeather, calculator, myTool], // Add your tool here
+  tools: [getWeather, calculator, myTool],
   systemPrompt: "You are a helpful assistant.",
 });
 ```
