@@ -1,57 +1,98 @@
-import { createDemoAgent } from "./agents/demo-agent.js";
+import { StateGraph, START, END, Annotation, messagesStateReducer, LangGraphRunnableConfig } from '@langchain/langgraph'
+import { BaseMessage, AIMessageChunk } from '@langchain/core/messages';
 
-/**
- * Main entry point for the agent application
- *
- * This file imports and exports the primary agent(s) for the application.
- * The exported `graph` is used by LangGraph CLI (langgraph.json) to register
- * the agent as an entry point accessible via the API.
+import { calculator } from './common/tools'
+import { RuntimeContext, RuntimeContextSchema } from './common/types';
+import { geminiModel } from './utils/llm-models'
+
+// System message, this will be leave intake assistant behavior
+// const sysMsg = new SystemMessage("You are a helpful assistant.");
+
+/*
+// This WizardState is just an idea.
+export const WizardState = Annotation.Root({
+  // 1. Conversation History (Append-only reducer)
+  // Used for LLM context (Chatbot memory)
+  messages: Annotation<BaseMessage[]>({
+    reducer: (curr, update) => curr.concat(update),
+    default: () => [],
+  }),
+
+  // 2. The Wizard "Form Data" (Merge/Overwrite reducer)
+  // This holds the actual answers (e.g., { leaveType: 'Medical', startDate: '2023-01-01' })
+  // This is the "Truth" for the business logic.
+  wizardData: Annotation<Record<string, any>>({
+    reducer: (curr, update) => ({ ...curr, ...update }),
+    default: () => ({}),
+  }),
+
+  // 3. Flow Control
+  currentStepId: Annotation<string>(), // The ID of the current active step
+  status: Annotation<'IN_PROGRESS' | 'REVIEW' | 'COMPLETED'>(),
+
+  // 4. UI Contract (The Generative UI Payload)
+  // The Frontend reads this to know what to render next.
+  uiPayload: Annotation<{
+    type: 'form' | 'message' | 'review'
+    schema?: any // JSON Schema for the form component
+    data?: any // Pre-filled data or validation errors
+  }>(),
+});
  */
 
-// Create the intake agent instance
-const agent = createDemoAgent();
+// Define a WizardState
+const WizardState = Annotation.Root({
+  messages: Annotation<BaseMessage[]>({
+    reducer: messagesStateReducer,
+    default: () => [],
+  }),
+});
 
-// Export the graph for LangSmith Studio and API access
-export const graph = agent;
+// Entry Node
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+const assistant = async (state: typeof WizardState.State, config: LangGraphRunnableConfig<RuntimeContext>) => {
+  const llm = geminiModel.bindTools([calculator]);
 
-/**
- * Main function to run the agent (only runs when executed directly)
- *
- * This demonstrates how to invoke the agent programmatically.
- * When running via `bun run src/agent.ts`, this will execute.
- * When running via LangGraph Studio, only the exported `graph` is used.
- */
-async function main() {
-  console.log("=== Google Gemini Agent Demo ===\n");
+  const response = await llm.invoke(state.messages);
+  // {"messages": ["what is 3 times 3?"]}
+  const messages = [];
 
-  // Example 1: Weather query
-  console.log("Query 1: Weather in Tokyo");
-  const result1 = await agent.invoke({
-    messages: [{ role: "user", content: "What's the weather in Tokyo?" }],
-  });
-  console.log("Response:", result1.messages[result1.messages.length - 1].content);
-  console.log();
+  // console.log('LLM Response:', response);
 
-  // Example 2: Calculator
-  console.log("Query 2: Math calculation");
-  const result2 = await agent.invoke({
-    messages: [{ role: "user", content: "What is 25 multiplied by 4?" }],
-  });
-  console.log("Response:", result2.messages[result2.messages.length - 1].content);
-  console.log();
+  if (response.tool_calls && response.tool_calls.length > 0) {
+    // Handle tool calls if any
+    // const toolResult = await runTools(state);
+    // return toolResult;
+    messages.push(new AIMessageChunk('The answer is 5!.'));
+  }
+  else {
+    messages.push(new AIMessageChunk('I can only do math, im a calculator dummy.'));
+  };
 
-  // Example 3: Combined query
-  console.log("Query 3: Combined weather and math");
-  const result3 = await agent.invoke({
-    messages: [{
-      role: "user",
-      content: "What's the weather in Paris? Also, what is 100 divided by 5?"
-    }],
-  });
-  console.log("Response:", result3.messages[result3.messages.length - 1].content);
+  return { messages };
 }
 
-// Run the agent only if this file is executed directly
-if (import.meta.url === `file://${process.argv[1]}`) {
-  main().catch(console.error);
-}
+/* const runTools = async (state) => {
+  const lastMessage = state.messages[state.messages.length - 1];
+  const toolCall = lastMessage.tool_calls[0];
+
+  // Actually run the code here!
+  if (toolCall.name === 'calculator') {
+    const result = toolCall.args.a * toolCall.args.b; // 27
+
+    // Return the result to the chat history
+    return {
+      messages: [new ToolMessage({ content: result.toString(), tool_call_id: toolCall.id })],
+    };
+  }
+} */
+
+// Define a new graph.
+const workflow = new StateGraph(WizardState, RuntimeContextSchema)
+// nodes
+  .addNode('assistant', assistant)
+  // edges
+  .addEdge(START, 'assistant')
+  .addEdge('assistant', END);
+
+export const graph = workflow.compile();
