@@ -1,44 +1,10 @@
-import { StateGraph, START, END, Annotation, messagesStateReducer, LangGraphRunnableConfig } from '@langchain/langgraph'
-import { BaseMessage, AIMessageChunk } from '@langchain/core/messages';
+import { StateGraph, START, END, Annotation, messagesStateReducer, LangGraphRunnableConfig, MemorySaver } from '@langchain/langgraph'
+import { ToolNode } from '@langchain/langgraph/prebuilt';
+import { BaseMessage, AIMessage } from '@langchain/core/messages';
 
 import { calculator } from './common/tools'
 import { RuntimeContext, RuntimeContextSchema } from './common/types';
-import { geminiModel } from './utils/llm-models'
-
-// System message, this will be leave intake assistant behavior
-// const sysMsg = new SystemMessage("You are a helpful assistant.");
-
-/*
-// This WizardState is just an idea.
-export const WizardState = Annotation.Root({
-  // 1. Conversation History (Append-only reducer)
-  // Used for LLM context (Chatbot memory)
-  messages: Annotation<BaseMessage[]>({
-    reducer: (curr, update) => curr.concat(update),
-    default: () => [],
-  }),
-
-  // 2. The Wizard "Form Data" (Merge/Overwrite reducer)
-  // This holds the actual answers (e.g., { leaveType: 'Medical', startDate: '2023-01-01' })
-  // This is the "Truth" for the business logic.
-  wizardData: Annotation<Record<string, any>>({
-    reducer: (curr, update) => ({ ...curr, ...update }),
-    default: () => ({}),
-  }),
-
-  // 3. Flow Control
-  currentStepId: Annotation<string>(), // The ID of the current active step
-  status: Annotation<'IN_PROGRESS' | 'REVIEW' | 'COMPLETED'>(),
-
-  // 4. UI Contract (The Generative UI Payload)
-  // The Frontend reads this to know what to render next.
-  uiPayload: Annotation<{
-    type: 'form' | 'message' | 'review'
-    schema?: any // JSON Schema for the form component
-    data?: any // Pre-filled data or validation errors
-  }>(),
-});
- */
+import { openAIModel } from './utils/llm-models'
 
 // Define a WizardState
 const WizardState = Annotation.Root({
@@ -46,53 +12,66 @@ const WizardState = Annotation.Root({
     reducer: messagesStateReducer,
     default: () => [],
   }),
+  wizardName: Annotation<string>({
+    reducer: (oldValue, newValue) => oldValue !== '' ? oldValue : newValue,
+    default: () => '' }),
+  myInput: Annotation<object | null>({
+    reducer: (oldValue, newValue) => ({ ...oldValue, ...newValue }),
+    default: () => null }),
 });
 
-// Entry Node
+// {"messages": ["What is 25%  of 145,000?"], "myInput": {"msg": "Deez Nuts!"}}
+
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 const assistant = async (state: typeof WizardState.State, config: LangGraphRunnableConfig<RuntimeContext>) => {
-  const llm = geminiModel.bindTools([calculator]);
+  try {
+    // console.log('#### Assistant node invoked with state:', state);
+    const llm = openAIModel.bindTools([calculator]);
+    const response = await llm.invoke(state.messages);
 
-  const response = await llm.invoke(state.messages);
-  // {"messages": ["what is 3 times 3?"]}
-  const messages = [];
-
-  // console.log('LLM Response:', response);
-
-  if (response.tool_calls && response.tool_calls.length > 0) {
-    // Handle tool calls if any
-    // const toolResult = await runTools(state);
-    // return toolResult;
-    messages.push(new AIMessageChunk('The answer is 5!.'));
-  }
-  else {
-    messages.push(new AIMessageChunk('I can only do math, im a calculator dummy.'));
-  };
-
-  return { messages };
-}
-
-/* const runTools = async (state) => {
-  const lastMessage = state.messages[state.messages.length - 1];
-  const toolCall = lastMessage.tool_calls[0];
-
-  // Actually run the code here!
-  if (toolCall.name === 'calculator') {
-    const result = toolCall.args.a * toolCall.args.b; // 27
-
-    // Return the result to the chat history
     return {
-      messages: [new ToolMessage({ content: result.toString(), tool_call_id: toolCall.id })],
+      messages: [response],
+      wizardName: 'Stinky Wizard',
     };
   }
-} */
+  catch (error) {
+    console.error('Error in assistant node:', error);
+    return { messages: [new AIMessage('Sorry, something went wrong.')] };
+  }
+}
 
-// Define a new graph.
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+const shouldContinue = (state: typeof WizardState.State, config: LangGraphRunnableConfig<RuntimeContext>) => {
+  const lastMessage = state.messages[state.messages.length - 1] as AIMessage;
+
+  if (lastMessage.tool_calls?.length) {
+    return 'tools';
+  }
+  return 'responseFormatter';
+}
+
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+const responseFormatter = async (state: typeof WizardState.State, config: LangGraphRunnableConfig<RuntimeContext>) => {
+  return {
+    messages: state.messages,
+    wizardName: state.wizardName,
+    myInput: state.myInput,
+  };
+};
+
+// Define the graph
 const workflow = new StateGraph(WizardState, RuntimeContextSchema)
-// nodes
+  // nodes
   .addNode('assistant', assistant)
+  .addNode('tools', new ToolNode([calculator]))
+  .addNode('responseFormatter', responseFormatter)
   // edges
   .addEdge(START, 'assistant')
-  .addEdge('assistant', END);
+  .addConditionalEdges('assistant', shouldContinue, {
+    tools: 'tools',
+    responseFormatter: 'responseFormatter',
+  })
+  .addEdge('tools', 'assistant')
+  .addEdge('responseFormatter', END);
 
-export const graph = workflow.compile();
+export const graph = workflow.compile({ checkpointer: new MemorySaver() });

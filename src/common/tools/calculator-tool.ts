@@ -1,6 +1,15 @@
 import { tool } from 'langchain';
 import * as z from 'zod';
 
+export const CalculatorInputSchema = z.object({
+  operation: z.enum(['add', 'subtract', 'multiply', 'divide'])
+    .describe('The arithmetic operation to perform'),
+  a: z.number().describe('First number'),
+  b: z.number().describe('Second number'),
+});
+
+export type CalculatorInput = z.infer<typeof CalculatorInputSchema>;
+
 /**
  * Calculator tool - Performs basic arithmetic operations
  */
@@ -24,11 +33,6 @@ export const calculator = tool(
   {
     name: 'calculator',
     description: 'Perform basic arithmetic operations (add, subtract, multiply, divide)',
-    schema: z.object({
-      operation: z.enum(['add', 'subtract', 'multiply', 'divide'])
-        .describe('The arithmetic operation to perform'),
-      a: z.number().describe('First number'),
-      b: z.number().describe('Second number'),
-    }),
+    schema: CalculatorInputSchema,
   },
 );

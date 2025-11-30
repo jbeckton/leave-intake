@@ -1,6 +1,12 @@
 import { tool } from 'langchain';
 import * as z from 'zod';
 
+export const GetWeatherInputSchema = z.object({
+  city: z.string().describe('The city to get the weather for'),
+});
+
+export type GetWeatherInput = z.infer<typeof GetWeatherInputSchema>;
+
 /**
  * Weather tool - Returns weather information for a given city
  */
@@ -11,8 +17,6 @@ export const getWeather = tool(
   {
     name: 'get_weather',
     description: 'Get the weather for a given city',
-    schema: z.object({
-      city: z.string().describe('The city to get the weather for'),
-    }),
+    schema: GetWeatherInputSchema,
   },
 );
