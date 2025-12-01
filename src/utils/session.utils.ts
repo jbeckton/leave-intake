@@ -1,4 +1,4 @@
-import type { WizardSession, Response } from '../types/wizard.types.js';
+import type { WizardSession, Response } from '../schemas/wizard.types.js';
 
 interface CreateSessionParams {
   wizardId: string

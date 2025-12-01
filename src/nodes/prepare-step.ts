@@ -1,5 +1,5 @@
 import type { WizardStateType } from '../state/wizard-state.js';
-import type { StepPayload, Element } from '../types/wizard.types.js';
+import type { StepPayload, Element } from '../schemas/wizard.types.js';
 
 /**
  * Prepare Step Node

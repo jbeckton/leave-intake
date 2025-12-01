@@ -1,4 +1,4 @@
-import type { WizardConfig } from '../types/wizard.types.js';
+import type { WizardConfig } from '../schemas/wizard.types.js';
 
 /**
  * Pregnancy & Adoption Wizard - Full wizard with 3 steps for POC

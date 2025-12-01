@@ -1,4 +1,4 @@
-import type { WizardConfig } from '../types/wizard.types.js';
+import type { WizardConfig } from '../schemas/wizard.types.js';
 import { leaveTypeSelectorConfig } from './leave-type-selector.config.js';
 import { pregAdoptionConfig } from './preg-adoption.config.js';
 

@@ -7,7 +7,7 @@ import type {
   WizardConfig,
   Step,
   StepPayload,
-} from '../types/wizard.types.js';
+} from '../schemas/wizard.types.js';
 
 /**
  * Wizard State Annotation

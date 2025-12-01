@@ -1,4 +1,4 @@
-import type { WizardConfig } from '../types/wizard.types.js';
+import type { WizardConfig } from '../schemas/wizard.types.js';
 
 /**
  * Leave Type Selector - Step 0 wizard for selecting leave type

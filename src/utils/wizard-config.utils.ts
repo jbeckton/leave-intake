@@ -1,5 +1,5 @@
 import { WizardConfigSchema } from '../schemas/wizard.schemas.js';
-import type { WizardConfig, LeaveType } from '../types/wizard.types.js';
+import type { WizardConfig, LeaveType } from '../schemas/wizard.types.js';
 import { wizardConfigs } from '../data/index.js';
 
 /**
