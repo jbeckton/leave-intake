@@ -1,9 +1,9 @@
 import { StateGraph, START, END, Annotation, messagesStateReducer, MemorySaver } from '@langchain/langgraph';
 import { ToolNode } from '@langchain/langgraph/prebuilt';
 import { BaseMessage, AIMessage } from '@langchain/core/messages';
-import { openAIModel } from './utils/llm-models';
-import { calculator } from './common/tools/calculator-tool';
-import { getWeather } from './common/tools/weather-tool';
+import { openAIModel } from './utils/llm-models.utils';
+import { calculator } from './tools/calculator-tool';
+import { getWeather } from './tools/weather-tool';
 
 // Define custom state with Annotation.Root
 const ExampleState = Annotation.Root({

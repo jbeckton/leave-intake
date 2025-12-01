@@ -1,9 +1,9 @@
 import { StateGraph, START, END, MessagesAnnotation, MemorySaver } from '@langchain/langgraph';
 import { ToolNode } from '@langchain/langgraph/prebuilt';
 import { AIMessage } from '@langchain/core/messages';
-import { openAIModel } from './utils/llm-models';
-import { calculator } from './common/tools/calculator-tool';
-import { getWeather } from './common/tools/weather-tool';
+import { openAIModel } from './utils/llm-models.utils';
+import { calculator } from './tools/calculator-tool';
+import { getWeather } from './tools/weather-tool';
 
 const assistant = async (state: typeof MessagesAnnotation.State) => {
   const llm = openAIModel.bindTools([calculator, getWeather]);
