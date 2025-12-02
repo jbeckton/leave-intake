@@ -1,6 +1,6 @@
 import type { WizardStateType } from '../state/wizard-state.js';
 import type { Response, Step } from '../schemas/wizard.types.js';
-import { geminiModel } from '../utils/llm-models.utils.js';
+import { openAIModel } from '../utils/llm-models.utils.js';
 import { z } from 'zod';
 
 const RuleResultSchema = z.object({
@@ -100,7 +100,7 @@ For each rule below, evaluate whether it is TRUE or FALSE based on the user resp
 
 ${stepsWithRules.map(s => formatRuleForPrompt({ stepId: s.stepId, rule: s.rule, ruleContext: s.ruleContext })).join('\n\n')}`;
 
-    const structuredModel = geminiModel.withStructuredOutput(RuleEvaluationResultSchema);
+    const structuredModel = openAIModel.withStructuredOutput(RuleEvaluationResultSchema);
     const parsed = await structuredModel.invoke(prompt);
 
     for (const result of parsed) {
