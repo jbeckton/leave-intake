@@ -62,7 +62,7 @@ export const initSession = async (
 
   // Valid leave type found - now enrich ALL responses
   const now = new Date().toISOString();
-  const enrichedResponses: Response[] = state.inputResponses.map(input => {
+  const enrichedResponses: Response[] = state.inputResponses.map((input) => {
     const semanticTag = getSemanticTagByQuestionId(selectorConfig, input.questionId);
     return {
       questionId: input.questionId,

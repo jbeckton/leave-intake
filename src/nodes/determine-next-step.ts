@@ -97,24 +97,11 @@ ${JSON.stringify(responseContext, null, 2)}
 
 ## Rules to Evaluate
 For each rule below, evaluate whether it is TRUE or FALSE based on the user responses.
-Return a JSON array with stepId and isRulePassed (boolean) for each.
 
-${stepsWithRules.map(s => formatRuleForPrompt({ stepId: s.stepId, rule: s.rule, ruleContext: s.ruleContext })).join('\n\n')}
+${stepsWithRules.map(s => formatRuleForPrompt({ stepId: s.stepId, rule: s.rule, ruleContext: s.ruleContext })).join('\n\n')}`;
 
-Return ONLY valid JSON array, no explanation.`;
-
-    const llmResponse = await geminiModel.invoke(prompt);
-    const content = typeof llmResponse.content === 'string'
-      ? llmResponse.content
-      : JSON.stringify(llmResponse.content);
-
-    // Parse JSON from response (handle markdown code blocks)
-    const jsonMatch = content.match(/\[[\s\S]*\]/);
-    if (!jsonMatch) {
-      throw new Error('LLM did not return valid JSON array for rule evaluation');
-    }
-
-    const parsed = RuleEvaluationResultSchema.parse(JSON.parse(jsonMatch[0]));
+    const structuredModel = geminiModel.withStructuredOutput(RuleEvaluationResultSchema);
+    const parsed = await structuredModel.invoke(prompt);
 
     for (const result of parsed) {
       ruleResults[result.stepId] = result.isRulePassed;
