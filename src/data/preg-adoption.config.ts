@@ -13,6 +13,7 @@ export const pregAdoptionConfig: WizardConfig = {
       name: 'leave-dates',
       title: 'Leave Dates',
       semanticTag: 'PREG:STEP:LEAVE_DATES',
+      // No rule - always shown as first step
     },
     {
       stepId: 'step-002',
@@ -20,13 +21,23 @@ export const pregAdoptionConfig: WizardConfig = {
       name: 'work-info',
       title: 'Work Information',
       semanticTag: 'PREG:STEP:WORK_INFO',
+      rule: 'PREG:QUESTION:EXPECTED_DATE is provided',
+    },
+    {
+      stepId: 'step-cfra',
+      sort: 3,
+      name: 'cfra-eligibility',
+      title: 'CFRA Eligibility',
+      semanticTag: 'PREG:STEP:CFRA',
+      rule: 'PREG:QUESTION:WORK_STATE equals "CA"',
     },
     {
       stepId: 'step-003',
-      sort: 3,
+      sort: 4,
       name: 'review',
       title: 'Review & Submit',
       semanticTag: 'PREG:STEP:REVIEW',
+      // No rule - always shown as final step
     },
   ],
   elements: [
@@ -81,7 +92,35 @@ export const pregAdoptionConfig: WizardConfig = {
         validation: ['required'],
       },
     },
-    // Step 3: Review
+    // Step 3: CFRA Eligibility (California only)
+    {
+      elementId: 'el-cfra-info',
+      stepId: 'step-cfra',
+      type: 'info',
+      sort: 1,
+      isVisible: true,
+      attributes: {
+        componentTypeKey: 'infoCard',
+        infoId: 'info-cfra',
+        title: 'California Family Rights Act (CFRA)',
+        content: 'As a California employee, you may be eligible for additional leave protections under CFRA.',
+      },
+    },
+    {
+      elementId: 'el-cfra-dummy',
+      stepId: 'step-cfra',
+      type: 'question',
+      sort: 2,
+      isVisible: true,
+      attributes: {
+        questionId: 'q-cfra-acknowledge',
+        semanticTag: 'PREG:QUESTION:CFRA_ACKNOWLEDGE',
+        componentTypeKey: 'checkbox',
+        questionText: 'I acknowledge that I have read the CFRA information.',
+        validation: ['required'],
+      },
+    },
+    // Step 4: Review
     {
       elementId: 'el-005',
       stepId: 'step-003',

@@ -9,6 +9,8 @@ export const StepSchema = z.object({
   name: z.string(),
   title: z.string(),
   semanticTag: z.string(),
+  rule: z.string().optional(), // Boolean condition for step visibility (if undefined, step always passes)
+  ruleContext: z.string().optional(), // Additional context for LLM rule evaluation
 });
 
 // -----------------------------------------------------------------------------

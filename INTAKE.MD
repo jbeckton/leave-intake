@@ -354,7 +354,19 @@ Creates session and returns Step 1 of the selected wizard.
 }
 ```
 
-### 5. Resume (Return to Existing Session)
+### 5. Respond (Submit Step 3 Answers)
+
+```json
+{
+  "action": "respond",
+  "inputStepId": "step-cfra",
+  "inputResponses": [
+    { "questionId": "q-cfra-acknowledge", "value": "true" }
+  ]
+}
+```
+
+### 6. Resume (Return to Existing Session)
 
 ```json
 { "action": "resume" }
@@ -379,16 +391,76 @@ Returns the leave-type-selector again since the value is invalid.
 
 ## Rules Engine
 
-The rules engine uses LLM-based evaluation with natural language rules. No prescribed rule syntax - whatever works best for rule authors.
+The rules engine uses LLM-based evaluation with natural language rules. Rules are defined at the step level and evaluated after each step completion.
 
-### Design Principles
+### Design Model: Linear + Skip
 
-| Aspect        | Approach                                 |
-| ------------- | ---------------------------------------- |
-| Rule language | Natural language, format-agnostic        |
-| Semantic tags | Colon-delimited, namespaced identifiers  |
-| Validation    | Rules must reference valid semantic tags |
-| Output        | Structured (next step semantic tag)      |
+The wizard follows a **linear flow with conditional skipping**:
+
+1. Steps are ordered by `sort` value
+2. Each step can have an optional `rule` (boolean condition)
+3. Steps without rules default to `isRulePassed = true`
+4. After each step, all future step rules are evaluated in one LLM call
+5. The next step is the first future step (by sort order) where `isRulePassed === true`
+
+### Step Schema with Rules
+
+```typescript
+{
+  stepId: 'step-cfra',
+  sort: 3,
+  name: 'cfra-eligibility',
+  title: 'CFRA Eligibility',
+  semanticTag: 'PREG:STEP:CFRA',
+  rule: 'PREG:QUESTION:WORK_STATE equals "CA"',
+  ruleContext: 'Optional context to help LLM understand complex values',
+}
+```
+
+### Rule Format
+
+Rules are **simple boolean conditions** - no "Show if" or "Display when" phrasing. The LLM evaluates each rule to `true` or `false`.
+
+**Examples:**
+```
+PREG:QUESTION:WORK_STATE equals "CA"
+PREG:QUESTION:EXPECTED_DATE is provided
+PREG:QUESTION:LEAVE_DURATION equals "12_weeks" AND PREG:QUESTION:WORK_STATE equals "CA"
+PREG:QUESTION:BENEFITS contains "dental"
+PREG:QUESTION:COVERAGE_TYPES has "vision"
+```
+
+**Supported operators (natural language):**
+- `equals` / `is` - exact match
+- `contains` / `has` - for multi-select values (JSON arrays)
+- `is provided` / `is not empty` - value exists
+- `AND` / `OR` - boolean logic
+- Comparisons: `greater than`, `less than`, `within X days`
+
+### Response Context Format
+
+Responses are passed to the LLM as a simple key-value map using semantic tags as keys:
+
+```json
+{
+  "PREG:QUESTION:EXPECTED_DATE": "2025-06-15",
+  "PREG:QUESTION:WORK_STATE": "CA",
+  "PREG:QUESTION:BENEFITS": "[\"medical\",\"dental\",\"vision\"]"
+}
+```
+
+Values can be simple strings, JSON arrays/objects, CSV, or any format - the LLM interprets based on context.
+
+### Rule Context (Optional)
+
+The `ruleContext` field provides additional context for complex value formats:
+
+```typescript
+{
+  rule: 'PREG:QUESTION:BENEFITS contains "dental"',
+  ruleContext: 'PREG:QUESTION:BENEFITS is a JSON array like ["medical","dental","vision"]',
+}
+```
 
 ### Semantic Tags
 
@@ -404,44 +476,45 @@ PREG:QUESTION:EXPECTED_DATE
 
 **Where tags live:**
 - `step.semanticTag` - Reference steps in routing rules
-- `element.attributes.semanticTag` - Reference elements in visibility rules. Only question type elements need a semanticTag
+- `element.attributes.semanticTag` - Reference elements in visibility rules
 - `response.semanticTag` - Copied from question, enables rule matching without lookups
 
-### Rule Examples
+### LLM Evaluation
 
-Rules are natural language, using semantic tags for precision:
+The `determineNextStep` node:
+1. Gets all future steps (sort > current step's sort)
+2. Sets `isRulePassed = true` for steps without rules
+3. Calls LLM with responses + rules array for steps with rules
+4. Parses JSON response with `[{ stepId, isRulePassed }, ...]`
+5. Returns the first step (by sort) where `isRulePassed === true`
 
+**Example LLM Prompt:**
 ```
-When PREG:QUESTION:WORK_STATE is California
-and PREG:QUESTION:LEAVE_TYPE is Pregnancy
-then after PREG:STEP:LEAVE_DATES go to PREG:STEP:CFRA_ELIGIBILITY
+You are evaluating boolean conditions based on user responses.
+
+## User Responses
+{
+  "PREG:QUESTION:EXPECTED_DATE": "2025-06-15",
+  "PREG:QUESTION:WORK_STATE": "CA"
+}
+
+## Rules to Evaluate
+- stepId: "step-cfra"
+  rule: "PREG:QUESTION:WORK_STATE equals 'CA'"
+
+- stepId: "step-ny-pfl"
+  rule: "PREG:QUESTION:WORK_STATE equals 'NY'"
+
+Return ONLY valid JSON array, no explanation.
 ```
 
+**Example LLM Response:**
+```json
+[
+  { "stepId": "step-cfra", "isRulePassed": true },
+  { "stepId": "step-ny-pfl", "isRulePassed": false }
+]
 ```
-When PREG:QUESTION:EXPECTED_DATE is within 60 days
-and PREG:QUESTION:WEEKS_EMPLOYED is more than 52
-then go to PREG:STEP:FMLA_ELIGIBILITY
-```
-
-The LLM handles date math, numeric comparisons, and boolean logic natively.
-
-### Context for Rules Evaluation
-
-The rules engine receives:
-- Current step (semantic tag)
-- All session responses (semantic tag → value)
-- Available next steps (from wizard config with semantic tags)
-- The rule set for this wizard
-
-### Testing
-
-Rule authors need a testing interface to:
-1. Write/edit rules
-2. Provide sample session data
-3. See LLM decision + reasoning
-4. Iterate until correct
-
-Same people who configure wizards also write rules - they own both the semantic vocabulary and the rule content.
 
 ---
 

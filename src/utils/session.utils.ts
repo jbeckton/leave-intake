@@ -3,7 +3,7 @@ import type { WizardSession, Response } from '../schemas/wizard.types.js';
 interface CreateSessionParams {
   wizardId: string
   employeeId: string
-  initialResponse?: Response
+  initialResponses?: Response[]
 }
 
 /**
@@ -17,7 +17,7 @@ const generateSessionId = (): string => {
  * Create a new wizard session
  */
 export const createSession = (params: CreateSessionParams): WizardSession => {
-  const { wizardId, employeeId, initialResponse } = params;
+  const { wizardId, employeeId, initialResponses } = params;
   const now = new Date().toISOString();
 
   return {
@@ -28,6 +28,6 @@ export const createSession = (params: CreateSessionParams): WizardSession => {
     updatedAt: now,
     currentStepId: '', // Will be set by the node that creates the session
     status: 'in-progress',
-    responses: initialResponse ? [initialResponse] : [],
+    responses: initialResponses ?? [],
   };
 };

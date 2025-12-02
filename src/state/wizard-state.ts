@@ -49,6 +49,12 @@ export const WizardState = Annotation.Root({
     default: () => null,
   }),
 
+  // Derived (computed by determineNextStep)
+  stepRuleResults: Annotation<Record<string, boolean>>({
+    reducer: (current, updates) => ({ ...current, ...updates }),
+    default: () => ({}),
+  }),
+
   // Output
   stepPayload: Annotation<StepPayload | null>({
     reducer: (_, newValue) => newValue,

@@ -12,7 +12,6 @@ import {
 import { createSession } from '../utils/session.utils.js';
 
 const LEAVE_TYPE_QUESTION_ID = 'q-leave-type';
-const LEAVE_TYPE_SEMANTIC_TAG = 'INTAKE:QUESTION:LEAVE_TYPE';
 
 /**
  * Init Session Node
@@ -61,14 +60,17 @@ export const initSession = async (
     };
   }
 
-  // Valid leave type - enrich response with semanticTag and answeredAt
-  const semanticTag = getSemanticTagByQuestionId(selectorConfig, LEAVE_TYPE_QUESTION_ID);
-  const enrichedLeaveTypeResponse: Response = {
-    questionId: leaveTypeInput.questionId,
-    semanticTag: semanticTag ?? LEAVE_TYPE_SEMANTIC_TAG,
-    value: leaveTypeInput.value,
-    answeredAt: new Date().toISOString(),
-  };
+  // Valid leave type found - now enrich ALL responses
+  const now = new Date().toISOString();
+  const enrichedResponses: Response[] = state.inputResponses.map(input => {
+    const semanticTag = getSemanticTagByQuestionId(selectorConfig, input.questionId);
+    return {
+      questionId: input.questionId,
+      semanticTag: semanticTag ?? `UNKNOWN:QUESTION:${input.questionId}`,
+      value: input.value,
+      answeredAt: now,
+    };
+  });
 
   // Create session and load the real wizard
   const wizardId = mapLeaveTypeToWizardId(
@@ -80,7 +82,7 @@ export const initSession = async (
   const session = createSession({
     wizardId,
     employeeId: runtimeContext.employeeId ?? 'unknown',
-    initialResponse: enrichedLeaveTypeResponse,
+    initialResponses: enrichedResponses,
   });
 
   // Set the current step ID on the session
@@ -90,8 +92,8 @@ export const initSession = async (
     session,
     config: wizardConfig,
     currentStep: firstStep,
-    // Set enriched response in state (starts accumulation)
-    responses: [enrichedLeaveTypeResponse],
+    // Set all enriched responses in state
+    responses: enrichedResponses,
     // Clear input after processing
     inputResponses: [],
   };
