@@ -4,21 +4,21 @@
 
 A stateful, multi-step wizard for employee leave requests (FMLA, Pregnancy, Adoption, etc.). Built with LangGraph for state persistence and human-in-the-loop support.
 
-**Initial Implementation:** Pregnancy & Adoption leave type.
-
 ## Core Concepts
 
 | Concept           | Description                                                                     |
 | ----------------- | ------------------------------------------------------------------------------- |
-| **Wizard Config** | Static definition of steps and elements for a leave type                        |
+| **Wizard Config** | Single unified config defining all steps and elements for all leave types       |
 | **Step**          | A discrete phase in the wizard containing one or more elements                  |
 | **Element**       | A UI component - either interactive (question) or informational (heading, info) |
 | **Session**       | Runtime state: current step, collected responses, status                        |
+| **Rules Engine**  | LLM-based evaluation of step visibility rules based on user responses           |
 
 ## Wizard Config
 
-- One config per Leave Type
+- **Single unified config** for all leave types (`leave-intake-v1`)
 - Steps are ordered but flow is dynamic (driven by rules engine)
+- Step visibility is controlled by rules evaluated against responses
 - Elements have visibility rules (always visible or conditional)
 
 ### Element Types
@@ -35,54 +35,71 @@ A stateful, multi-step wizard for employee leave requests (FMLA, Pregnancy, Adop
 ### Config Structure
 
 ```typescript
-// WizardConfig - static definition
+// WizardConfig - unified config for all leave types
 {
-    wizardId: 'preg-adoption-v1',
-    wizardName: 'Pregnancy & Adoption',
+    wizardId: 'leave-intake-v1',
+    wizardName: 'Leave of Absence Request',
     steps: [
         {
-            stepId: 'step-001',
+            stepId: 'step-leave-type',
             sort: 1,
+            name: 'leave-type-selection',
+            title: 'Leave Type',
+            semanticTag: 'INTAKE:STEP:LEAVE_TYPE',
+            // No rule - always shown as first step
+        },
+        {
+            stepId: 'step-leave-dates',
+            sort: 2,
             name: 'leave-dates',
             title: 'Leave Dates',
-            semanticTag: 'PREG:STEP:LEAVE_DATES',
-        }
+            semanticTag: 'INTAKE:STEP:LEAVE_DATES',
+            rule: 'INTAKE:QUESTION:LEAVE_TYPE is provided',
+        },
+        {
+            stepId: 'step-cfra',
+            sort: 4,
+            name: 'cfra-eligibility',
+            title: 'CFRA Eligibility',
+            semanticTag: 'INTAKE:STEP:CFRA',
+            rule: 'INTAKE:QUESTION:LEAVE_TYPE equals "pregnancy-adoption" AND INTAKE:QUESTION:WORK_STATE equals "CA"',
+        },
     ],
     elements: [
         {
-            elementId: 'el-001',
-            stepId: 'step-001',  // Direct reference to owning step
+            elementId: 'el-leave-type',
+            stepId: 'step-leave-type',
             type: 'question',
             sort: 1,
-            isVisible: true,  // or rule reference for conditional visibility
+            isVisible: true,
+            attributes: {
+                questionId: 'q-leave-type',
+                semanticTag: 'INTAKE:QUESTION:LEAVE_TYPE',
+                componentTypeKey: 'select',
+                questionText: 'Select your leave type',
+                options: [
+                    { optionId: 'opt-preg', sort: 1, label: 'Pregnancy & Adoption', value: 'pregnancy-adoption' },
+                    { optionId: 'opt-medical', sort: 2, label: 'Medical Leave', value: 'medical' },
+                    { optionId: 'opt-family', sort: 3, label: 'Family Care', value: 'family-care' },
+                ],
+                validation: ['required'],
+            }
+        },
+        {
+            elementId: 'el-expected-date',
+            stepId: 'step-leave-dates',
+            type: 'question',
+            sort: 1,
+            isVisible: true,
             attributes: {
                 questionId: 'q-expected-date',
-                semanticTag: 'PREG:QUESTION:EXPECTED_DATE',
-                componentTypeKey: 'datePicker',  // maps to UI component
-                questionText: 'What is your expected due date?',
+                semanticTag: 'INTAKE:QUESTION:EXPECTED_DATE',
+                componentTypeKey: 'datePicker',
+                questionText: 'What is your expected due date or adoption date?',
                 helperText: 'Approximate date is fine.',
                 validation: ['required', 'futureDate'],
             }
         },
-        {
-            elementId: 'el-002',
-            stepId: 'step-001',
-            type: 'question',
-            sort: 2,
-            isVisible: true,
-            attributes: {
-                questionId: 'q-leave-duration',
-                semanticTag: 'PREG:QUESTION:LEAVE_DURATION',
-                componentTypeKey: 'select',
-                questionText: 'How long do you plan to take leave?',
-                options: [
-                    { optionId: 'opt-1', sort: 1, label: '6 weeks', value: '6_weeks' },
-                    { optionId: 'opt-2', sort: 2, label: '8 weeks', value: '8_weeks' },
-                    { optionId: 'opt-3', sort: 3, label: '12 weeks', value: '12_weeks' },
-                ],
-                validation: ['required'],
-            }
-        }
     ]
 }
 ```
@@ -93,16 +110,22 @@ A stateful, multi-step wizard for employee leave requests (FMLA, Pregnancy, Adop
 // WizardSession - runtime state (separate from config)
 {
     sessionId: 'sess-abc123',
-    wizardId: 'preg-adoption-v1',
+    wizardId: 'leave-intake-v1',
     employeeId: 'emp-456',
     createdAt: '2025-11-29T08:14:23.456Z',
     updatedAt: '2025-11-29T09:30:00.000Z',
-    currentStepId: 'step-001',
+    currentStepId: 'step-leave-dates',
     status: 'in-progress',  // 'in-progress' | 'review' | 'completed' | 'abandoned'
     responses: [
         {
+            questionId: 'q-leave-type',
+            semanticTag: 'INTAKE:QUESTION:LEAVE_TYPE',
+            value: 'pregnancy-adoption',
+            answeredAt: '2025-11-29T08:15:00.000Z',
+        },
+        {
             questionId: 'q-expected-date',
-            semanticTag: 'PREG:QUESTION:EXPECTED_DATE',
+            semanticTag: 'INTAKE:QUESTION:EXPECTED_DATE',
             value: '2025-06-15',
             answeredAt: '2025-11-29T08:20:00.000Z',
         }
@@ -116,15 +139,14 @@ A stateful, multi-step wizard for employee leave requests (FMLA, Pregnancy, Adop
 The Intake Wizard Agent manages the wizard flow. On each user submission:
 1. Validate responses
 2. Update wizard session state
-3. Run rules engine to determine next step
+3. Run rules engine to determine next step (evaluates step visibility rules)
 4. Return next step's elements to UI
 
 ### Initialize
 
 1. Create wizard session (persisted to database)
-2. Load default wizard config with initial step (leave type + dates)
-3. On leave type selection → load leave-specific wizard config into agent state
-
+2. Load unified wizard config (`leave-intake-v1`)
+3. Set current step to first step (leave type selection)
 
 ### Loop
 
@@ -152,11 +174,11 @@ The wizard uses a **router-based architecture** where each invocation runs the g
 
 ### Invocation Patterns
 
-| Scenario              | Client Sends                                               | Result                                                |
-| --------------------- | ---------------------------------------------------------- | ----------------------------------------------------- |
-| **New session**       | `invoke({ action: 'init', wizardId }, { thread_id: new })` | Creates session, returns first step payload           |
-| **Submit responses**  | `invoke({ action: 'respond', responses }, { thread_id })`  | Processes responses, advances step, returns next step |
-| **Return to session** | `invoke({ action: 'resume' }, { thread_id })`              | Loads session from state, returns current step        |
+| Scenario              | Client Sends                                              | Result                                                |
+| --------------------- | --------------------------------------------------------- | ----------------------------------------------------- |
+| **New session**       | `invoke({ action: 'init' }, { thread_id: new })`          | Creates session, returns first step payload           |
+| **Submit responses**  | `invoke({ action: 'respond', responses }, { thread_id })` | Processes responses, advances step, returns next step |
+| **Return to session** | `invoke({ action: 'resume' }, { thread_id })`             | Loads session from state, returns current step        |
 
 ### Graph Structure (Router + Multi-Node)
 
@@ -188,11 +210,12 @@ The wizard uses a **router-based architecture** where each invocation runs the g
 ```
 ┌─────────────────────────────────────────────────────────────────────┐
 │  1. New Session                                                     │
-│  invoke({ action: 'init', wizardId: 'preg-adoption-v1' }, config)  │
+│  invoke({ action: 'init' }, config)                                │
 │                                                                     │
 │  START → inputRouter → initSession → prepareStep → END             │
 │                                                                     │
 │  Returns: { step, elements, session }                              │
+│  (First step is always leave type selection)                       │
 └─────────────────────────────────────────────────────────────────────┘
                               ↓
                       UI renders step
@@ -205,6 +228,7 @@ The wizard uses a **router-based architecture** where each invocation runs the g
 │  START → inputRouter → processResponses → rulesEngine → prepareStep → END
 │                                                                     │
 │  Returns: { step, elements, session }                              │
+│  (Rules engine evaluates step visibility based on responses)       │
 └─────────────────────────────────────────────────────────────────────┘
                               ↓
                           (repeat)
@@ -242,14 +266,18 @@ const inputRouter = (state) => {
   }
 }
 
-// initSession - creates new session
-const initSession = (state) => {
-  const session = createSession(state.wizardId);
-  const config = loadWizardConfig(state.wizardId);
+// initSession - creates new session with unified config
+const initSession = (state, config) => {
+  const wizardConfig = loadWizardConfig('leave-intake-v1');
+  const session = createSession({
+    wizardId: wizardConfig.wizardId,
+    employeeId: config.configurable.employeeId,
+  });
+  session.currentStepId = wizardConfig.steps[0].stepId;
   return {
     session,
-    config,
-    currentStep: config.steps[0],
+    config: wizardConfig,
+    currentStep: wizardConfig.steps[0],
   };
 }
 
@@ -305,19 +333,20 @@ const WizardState = Annotation.Root({
 
 Use these JSON payloads to test the wizard flow. Each invocation requires a `thread_id` in the config for state persistence.
 
-### 1. Init (First Call - Shows Leave Type Selector)
+### 1. Init (New Session)
 
 ```json
 { "action": "init" }
 ```
 
-Returns the leave-type-selector wizard with a dropdown of leave types.
+Creates session and returns Step 1 (leave type selection).
 
-### 2. Init (Select Leave Type - Creates Session)
+### 2. Respond (Submit Leave Type)
 
 ```json
 {
-  "action": "init",
+  "action": "respond",
+  "inputStepId": "step-leave-type",
   "inputResponses": [
     { "questionId": "q-leave-type", "value": "pregnancy-adoption" },
     { "questionId": "q-leave-duration", "value": "12_weeks" }
@@ -325,28 +354,26 @@ Returns the leave-type-selector wizard with a dropdown of leave types.
 }
 ```
 
-Valid values: `pregnancy-adoption`, `medical`, `family-care`
+Valid leave types: `pregnancy-adoption`, `medical`, `family-care`
 
-Creates session and returns Step 1 of the selected wizard.
-
-### 3. Respond (Submit Step 1 Answers)
+### 3. Respond (Submit Leave Dates)
 
 ```json
 {
   "action": "respond",
-  "inputStepId": "step-001",
+  "inputStepId": "step-leave-dates",
   "inputResponses": [
     { "questionId": "q-expected-date", "value": "2025-06-15" }
   ]
 }
 ```
 
-### 4. Respond (Submit Step 2 Answers)
+### 4. Respond (Submit Work Info)
 
 ```json
 {
   "action": "respond",
-  "inputStepId": "step-002",
+  "inputStepId": "step-work-info",
   "inputResponses": [
     { "questionId": "q-work-state", "value": "CA" },
     { "questionId": "q-manager-name", "value": "Jane Smith" }
@@ -354,7 +381,9 @@ Creates session and returns Step 1 of the selected wizard.
 }
 ```
 
-### 5. Respond (Submit Step 3 Answers)
+### 5. Respond (Submit CFRA Acknowledgment)
+
+Only shown for California + Pregnancy/Adoption:
 
 ```json
 {
@@ -373,19 +402,6 @@ Creates session and returns Step 1 of the selected wizard.
 ```
 
 Use with an existing `thread_id` to return to a paused session.
-
-### Invalid Leave Type (Loops Back to Selector)
-
-```json
-{
-  "action": "init",
-  "inputResponses": [
-    { "questionId": "q-leave-type", "value": "invalid-type" }
-  ]
-}
-```
-
-Returns the leave-type-selector again since the value is invalid.
 
 ---
 
@@ -408,11 +424,11 @@ The wizard follows a **linear flow with conditional skipping**:
 ```typescript
 {
   stepId: 'step-cfra',
-  sort: 3,
+  sort: 4,
   name: 'cfra-eligibility',
   title: 'CFRA Eligibility',
-  semanticTag: 'PREG:STEP:CFRA',
-  rule: 'PREG:QUESTION:WORK_STATE equals "CA"',
+  semanticTag: 'INTAKE:STEP:CFRA',
+  rule: 'INTAKE:QUESTION:LEAVE_TYPE equals "pregnancy-adoption" AND INTAKE:QUESTION:WORK_STATE equals "CA"',
   ruleContext: 'Optional context to help LLM understand complex values',
 }
 ```
@@ -423,11 +439,11 @@ Rules are **simple boolean conditions** - no "Show if" or "Display when" phrasin
 
 **Examples:**
 ```
-PREG:QUESTION:WORK_STATE equals "CA"
-PREG:QUESTION:EXPECTED_DATE is provided
-PREG:QUESTION:LEAVE_DURATION equals "12_weeks" AND PREG:QUESTION:WORK_STATE equals "CA"
-PREG:QUESTION:BENEFITS contains "dental"
-PREG:QUESTION:COVERAGE_TYPES has "vision"
+INTAKE:QUESTION:WORK_STATE equals "CA"
+INTAKE:QUESTION:LEAVE_TYPE is provided
+INTAKE:QUESTION:LEAVE_TYPE equals "pregnancy-adoption" AND INTAKE:QUESTION:WORK_STATE equals "CA"
+INTAKE:QUESTION:BENEFITS contains "dental"
+INTAKE:QUESTION:COVERAGE_TYPES has "vision"
 ```
 
 **Supported operators (natural language):**
@@ -443,9 +459,10 @@ Responses are passed to the LLM as a simple key-value map using semantic tags as
 
 ```json
 {
-  "PREG:QUESTION:EXPECTED_DATE": "2025-06-15",
-  "PREG:QUESTION:WORK_STATE": "CA",
-  "PREG:QUESTION:BENEFITS": "[\"medical\",\"dental\",\"vision\"]"
+  "INTAKE:QUESTION:LEAVE_TYPE": "pregnancy-adoption",
+  "INTAKE:QUESTION:EXPECTED_DATE": "2025-06-15",
+  "INTAKE:QUESTION:WORK_STATE": "CA",
+  "INTAKE:QUESTION:BENEFITS": "[\"medical\",\"dental\",\"vision\"]"
 }
 ```
 
@@ -457,8 +474,8 @@ The `ruleContext` field provides additional context for complex value formats:
 
 ```typescript
 {
-  rule: 'PREG:QUESTION:BENEFITS contains "dental"',
-  ruleContext: 'PREG:QUESTION:BENEFITS is a JSON array like ["medical","dental","vision"]',
+  rule: 'INTAKE:QUESTION:BENEFITS contains "dental"',
+  ruleContext: 'INTAKE:QUESTION:BENEFITS is a JSON array like ["medical","dental","vision"]',
 }
 ```
 
@@ -467,11 +484,11 @@ The `ruleContext` field provides additional context for complex value formats:
 Semantic tags create an unambiguous bridge between rules and data:
 
 ```
-PREG:QUESTION:EXPECTED_DATE
- │      │          │
- │      │          └── Field name
- │      └── Element type (STEP, QUESTION, etc.)
- └── Wizard/Leave type
+INTAKE:QUESTION:LEAVE_TYPE
+  │       │          │
+  │       │          └── Field name
+  │       └── Element type (STEP, QUESTION, etc.)
+  └── Wizard namespace (INTAKE for leave intake wizard)
 ```
 
 **Where tags live:**
@@ -481,12 +498,11 @@ PREG:QUESTION:EXPECTED_DATE
 
 ### LLM Evaluation
 
-The `determineNextStep` node:
+The `determineNextStep` node uses `.withStructuredOutput()` for reliable parsing:
 1. Gets all future steps (sort > current step's sort)
 2. Sets `isRulePassed = true` for steps without rules
-3. Calls LLM with responses + rules array for steps with rules
-4. Parses JSON response with `[{ stepId, isRulePassed }, ...]`
-5. Returns the first step (by sort) where `isRulePassed === true`
+3. Calls LLM with structured output schema for steps with rules
+4. Returns the first step (by sort) where `isRulePassed === true`
 
 **Example LLM Prompt:**
 ```
@@ -494,21 +510,21 @@ You are evaluating boolean conditions based on user responses.
 
 ## User Responses
 {
-  "PREG:QUESTION:EXPECTED_DATE": "2025-06-15",
-  "PREG:QUESTION:WORK_STATE": "CA"
+  "INTAKE:QUESTION:LEAVE_TYPE": "pregnancy-adoption",
+  "INTAKE:QUESTION:WORK_STATE": "CA"
 }
 
 ## Rules to Evaluate
 - stepId: "step-cfra"
-  rule: "PREG:QUESTION:WORK_STATE equals 'CA'"
+  rule: "INTAKE:QUESTION:LEAVE_TYPE equals 'pregnancy-adoption' AND INTAKE:QUESTION:WORK_STATE equals 'CA'"
 
 - stepId: "step-ny-pfl"
-  rule: "PREG:QUESTION:WORK_STATE equals 'NY'"
+  rule: "INTAKE:QUESTION:WORK_STATE equals 'NY'"
 
 Return ONLY valid JSON array, no explanation.
 ```
 
-**Example LLM Response:**
+**Example LLM Response (via structured output):**
 ```json
 [
   { "stepId": "step-cfra", "isRulePassed": true },

@@ -3,19 +3,15 @@ import type { WizardStateType } from '../state/wizard-state.js';
 /**
  * Input Router
  *
- * Routes to appropriate node based on session existence and action.
- * - No session → initSession (handles leave type selection loop)
- * - Has session + respond → processResponses
- * - Has session + resume → loadSession
+ * Routes to appropriate node based on action.
+ * - init → initSession (creates new session)
+ * - respond → processResponses (handles step responses)
+ * - resume → loadSession (restores existing session)
  */
 export const inputRouter = (state: WizardStateType): string => {
-  // Pre-session phase: always route to initSession
-  if (!state.session) {
-    return 'initSession';
-  }
-
-  // Post-session phase: route based on action
   switch (state.action) {
+    case 'init':
+      return 'initSession';
     case 'respond':
       return 'processResponses';
     case 'resume':
