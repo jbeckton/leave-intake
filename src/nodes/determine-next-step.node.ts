@@ -99,6 +99,9 @@ export const determineNextStep = async (state: WizardStateType) => {
 ${JSON.stringify(responseContext, null, 2)}
 
 ## Rules to Evaluate
+The questions preseneted to the user are dynamic and therefore so are the responses. 
+If the rule references a question that is not present in the user responses, then the user has not answered the question yet or it will not be presented to them.
+Treat missing responses as FALSE.
 For each rule below, evaluate whether it is TRUE or FALSE based on the user responses.
 
 ${stepsWithRules.map(s => formatRuleForPrompt({ stepId: s.stepId, rule: s.rule, ruleContext: s.ruleContext })).join('\n\n')}`;
