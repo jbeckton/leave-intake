@@ -4,7 +4,8 @@
         "."
     ],
     "graphs": {
-        "agent": "./src/agent.ts:graph",
+        "chat": "./src/chat-agent.graph.ts:chatAgentGraph",
+        "wizard": "./src/agent.graph.ts:graph",
         "example_1": "./src/example-1.ts:graph",
         "example_2": "./src/example-2.ts:graph"
     },

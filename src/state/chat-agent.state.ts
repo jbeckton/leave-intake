@@ -1,4 +1,5 @@
-import { Annotation } from '@langchain/langgraph';
+import { Annotation, messagesStateReducer } from '@langchain/langgraph';
+import { BaseMessage } from '@langchain/core/messages';
 import type {
   WizardAction,
   InputResponse,
@@ -10,15 +11,24 @@ import type {
 } from '../schemas/wizard.types.js';
 
 /**
- * Wizard State Annotation
+ * Chat Agent State
  *
- * Defines the state shape for the wizard agent graph.
+ * Manages conversational interactions and wizard subgraph.
+ * Wizard keys are shared directly (not wrapped) to enable proper
+ * checkpointer propagation when wizard runs as a subgraph.
  */
-export const WizardState = Annotation.Root({
+export const ChatAgentState = Annotation.Root({
+  // Chat-specific: messages from user
+  messages: Annotation<BaseMessage[]>({
+    reducer: messagesStateReducer,
+    default: () => [],
+  }),
+
+  // Wizard keys (shared with wizard subgraph)
   // Input (from invoke) - UI submits minimal InputResponse
-  action: Annotation<WizardAction>({
-    reducer: (_, newValue) => newValue,
-    default: () => 'init' as WizardAction,
+  wizardAction: Annotation<WizardAction | null>({
+    reducer: (_, newValue) => newValue ?? null,
+    default: () => null,
   }),
   inputStepId: Annotation<string | null>({
     reducer: (_, newValue) => newValue ?? null,
@@ -62,4 +72,4 @@ export const WizardState = Annotation.Root({
   }),
 });
 
-export type WizardStateType = typeof WizardState.State;
+export type ChatAgentStateType = typeof ChatAgentState.State;

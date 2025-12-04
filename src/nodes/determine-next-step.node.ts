@@ -1,4 +1,4 @@
-import type { WizardStateType } from '../state/wizard-state.js';
+import type { WizardStateType } from '../state/wizard.state.js';
 import type { Response, Step } from '../schemas/wizard.types.js';
 import { openAIModel } from '../utils/llm-models.utils.js';
 import { z } from 'zod';
@@ -8,7 +8,10 @@ const RuleResultSchema = z.object({
   isRulePassed: z.boolean(),
 });
 
-const RuleEvaluationResultSchema = z.array(RuleResultSchema);
+// OpenAI structured output requires root schema to be an object, not an array
+const RuleEvaluationResultSchema = z.object({
+  results: z.array(RuleResultSchema),
+});
 
 /**
  * Build response context as a simple key-value map
@@ -103,7 +106,7 @@ ${stepsWithRules.map(s => formatRuleForPrompt({ stepId: s.stepId, rule: s.rule, 
     const structuredModel = openAIModel.withStructuredOutput(RuleEvaluationResultSchema);
     const parsed = await structuredModel.invoke(prompt);
 
-    for (const result of parsed) {
+    for (const result of parsed.results) {
       ruleResults[result.stepId] = result.isRulePassed;
     }
   }

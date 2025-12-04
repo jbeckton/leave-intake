@@ -1,5 +1,5 @@
 import { StateGraph, START, END, MemorySaver } from '@langchain/langgraph';
-import { WizardState } from './state/wizard-state.js';
+import { WizardState } from './state/wizard.state.js';
 import { RuntimeContextSchema } from './common/types/index.js';
 import {
   inputRouter,
@@ -41,4 +41,8 @@ const workflow = new StateGraph(WizardState, RuntimeContextSchema)
   .addEdge('determineNextStep', 'prepareStep')
   .addEdge('prepareStep', END);
 
+// Export workflow for subgraph use (consumer compiles without checkpointer)
+export const wizardWorkflow = workflow;
+
+// Export compiled graph with checkpointer for standalone use
 export const graph = workflow.compile({ checkpointer: new MemorySaver() });

@@ -3,3 +3,4 @@
  */
 export { getWeather } from './weather-tool.js';
 export { calculator } from './calculator-tool.js';
+export { getWizardContextTool } from './get-wizard-context.tool.js';

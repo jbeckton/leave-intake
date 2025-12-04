@@ -336,7 +336,7 @@ Use these JSON payloads to test the wizard flow. Each invocation requires a `thr
 ### 1. Init (New Session)
 
 ```json
-{ "action": "init" }
+{ "wizardAction": "init" }
 ```
 
 Creates session and returns Step 1 (leave type selection).
@@ -345,7 +345,7 @@ Creates session and returns Step 1 (leave type selection).
 
 ```json
 {
-  "action": "respond",
+  "wizardAction": "respond",
   "inputStepId": "step-leave-type",
   "inputResponses": [
     { "questionId": "q-leave-type", "value": "pregnancy-adoption" },
@@ -360,7 +360,7 @@ Valid leave types: `pregnancy-adoption`, `medical`, `family-care`
 
 ```json
 {
-  "action": "respond",
+  "wizardAction": "respond",
   "inputStepId": "step-leave-dates",
   "inputResponses": [
     { "questionId": "q-expected-date", "value": "2025-06-15" }
@@ -372,7 +372,7 @@ Valid leave types: `pregnancy-adoption`, `medical`, `family-care`
 
 ```json
 {
-  "action": "respond",
+  "wizardAction": "respond",
   "inputStepId": "step-work-info",
   "inputResponses": [
     { "questionId": "q-work-state", "value": "CA" },
@@ -387,7 +387,7 @@ Only shown for California + Pregnancy/Adoption:
 
 ```json
 {
-  "action": "respond",
+  "wizardAction": "respond",
   "inputStepId": "step-cfra",
   "inputResponses": [
     { "questionId": "q-cfra-acknowledge", "value": "true" }
@@ -398,7 +398,7 @@ Only shown for California + Pregnancy/Adoption:
 ### 6. Resume (Return to Existing Session)
 
 ```json
-{ "action": "resume" }
+{ "wizardAction": "resume" }
 ```
 
 Use with an existing `thread_id` to return to a paused session.

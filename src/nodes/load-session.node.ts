@@ -1,4 +1,4 @@
-import type { WizardStateType } from '../state/wizard-state.js';
+import type { WizardStateType } from '../state/wizard.state.js';
 
 /**
  * Load Session Node

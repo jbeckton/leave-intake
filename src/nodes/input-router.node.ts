@@ -1,4 +1,4 @@
-import type { WizardStateType } from '../state/wizard-state.js';
+import type { WizardStateType } from '../state/wizard.state.js';
 
 /**
  * Input Router
@@ -9,7 +9,7 @@ import type { WizardStateType } from '../state/wizard-state.js';
  * - resume → loadSession (restores existing session)
  */
 export const inputRouter = (state: WizardStateType): string => {
-  switch (state.action) {
+  switch (state.wizardAction) {
     case 'init':
       return 'initSession';
     case 'respond':
@@ -17,6 +17,6 @@ export const inputRouter = (state: WizardStateType): string => {
     case 'resume':
       return 'loadSession';
     default:
-      throw new Error(`Unknown action: ${state.action}`);
+      throw new Error(`Unknown wizardAction: ${state.wizardAction}`);
   }
 };

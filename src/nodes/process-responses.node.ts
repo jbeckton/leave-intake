@@ -1,4 +1,4 @@
-import type { WizardStateType } from '../state/wizard-state.js';
+import type { WizardStateType } from '../state/wizard.state.js';
 import type { Response } from '../schemas/wizard.types.js';
 import { getSemanticTagByQuestionId } from '../utils/wizard-config.utils.js';
 

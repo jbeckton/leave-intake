@@ -1,4 +1,4 @@
-import type { WizardStateType } from '../state/wizard-state.js';
+import type { WizardStateType } from '../state/wizard.state.js';
 import type { StepPayload, Element } from '../schemas/wizard.types.js';
 
 /**
@@ -23,7 +23,8 @@ export const prepareStep = async (state: WizardStateType) => {
       elements: [],
       session,
     };
-    return { stepPayload: completionPayload };
+    // Clear action after wizard completes to prevent stale routing
+    return { stepPayload: completionPayload, wizardAction: null };
   }
 
   // Get elements for the current step
@@ -37,5 +38,6 @@ export const prepareStep = async (state: WizardStateType) => {
     session,
   };
 
-  return { stepPayload };
+  // Clear wizardAction after wizard completes to prevent stale routing
+  return { stepPayload, wizardAction: null };
 };

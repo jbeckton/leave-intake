@@ -1,9 +1,15 @@
 /**
- * Node exports - All wizard graph nodes
+ * Node exports - All graph nodes
  */
-export { inputRouter } from './input-router.js';
-export { initSession } from './init-session.js';
-export { loadSession } from './load-session.js';
-export { processResponses } from './process-responses.js';
-export { determineNextStep } from './determine-next-step.js';
-export { prepareStep } from './prepare-step.js';
+
+// Wizard graph nodes
+export { inputRouter } from './input-router.node.js';
+export { initSession } from './init-session.node.js';
+export { loadSession } from './load-session.node.js';
+export { processResponses } from './process-responses.node.js';
+export { determineNextStep } from './determine-next-step.node.js';
+export { prepareStep } from './prepare-step.node.js';
+
+// Chat agent graph nodes
+export { chatInputRouter } from './chat-input-router.node.js';
+export { chatNode } from './chat-agent.node.js';

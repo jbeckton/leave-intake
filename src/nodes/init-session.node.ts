@@ -1,5 +1,5 @@
 import { LangGraphRunnableConfig } from '@langchain/langgraph';
-import type { WizardStateType } from '../state/wizard-state.js';
+import type { WizardStateType } from '../state/wizard.state.js';
 import { RuntimeContext } from '../common/types/index.js';
 import { getContext } from '../utils/getContext.js';
 import { loadWizardConfig } from '../utils/wizard-config.utils.js';

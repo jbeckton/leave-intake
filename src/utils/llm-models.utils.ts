@@ -1,10 +1,10 @@
-import { ChatGoogleGenerativeAI } from '@langchain/google-genai';
+// import { ChatGoogleGenerativeAI } from '@langchain/google-genai';
 import { ChatOpenAI } from '@langchain/openai';
 
 /**
  * Initialize the Google Gemini model with default configuration
  */
-const createGeminiModel = () => {
+/* const createGeminiModel = () => {
   return new ChatGoogleGenerativeAI({
     model: 'gemini-2.5-pro',
     temperature: 0,
@@ -13,7 +13,7 @@ const createGeminiModel = () => {
     // See: https://github.com/langchain-ai/langchainjs/issues/7018
     streaming: false,
   });
-}
+} */
 
 /**
  * Initialize the OpenAI model with default configuration
@@ -29,7 +29,7 @@ const createOpenAIModel = () => {
 /**
  * Default Gemini model instance
  */
-export const geminiModel = createGeminiModel();
+// export const geminiModel = createGeminiModel();
 
 /**
  * Default OpenAI model instance
