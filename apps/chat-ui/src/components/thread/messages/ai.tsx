@@ -10,7 +10,10 @@ import { ToolCalls, ToolResult } from "./tool-calls";
 import { MessageContentComplex } from "@langchain/core/messages";
 import { Fragment } from "react/jsx-runtime";
 import { isAgentInboxInterruptSchema } from "@/lib/agent-inbox-interrupt";
+import { isWizardInterrupt } from "@/lib/wizard-interrupt";
 import { ThreadView } from "../agent-inbox";
+import { WizardStepForm, WizardStepMessage } from "../wizard";
+import type { StepPayload } from "@/lib/wizard-types";
 import { useQueryState, parseAsBoolean } from "nuqs";
 import { GenericInterruptView } from "./generic-interrupt";
 import { useArtifact } from "../artifact";
@@ -85,12 +88,21 @@ function Interrupt({
 
   return (
     <>
+      {/* Wizard interrupt -> Custom wizard form */}
+      {isWizardInterrupt(interrupt) &&
+        (isLastMessage || hasNoAIOrToolMessages) && (
+          <WizardStepForm interrupt={interrupt} />
+        )}
+      {/* HITL interrupt -> Agent inbox UI (skip if wizard) */}
       {isAgentInboxInterruptSchema(interrupt) &&
+        !isWizardInterrupt(interrupt) &&
         (isLastMessage || hasNoAIOrToolMessages) && (
           <ThreadView interrupt={interrupt} />
         )}
+      {/* Fallback generic (skip if wizard or HITL) */}
       {interrupt &&
       !isAgentInboxInterruptSchema(interrupt) &&
+      !isWizardInterrupt(interrupt) &&
       (isLastMessage || hasNoAIOrToolMessages) ? (
         <GenericInterruptView interrupt={fallbackValue} />
       ) : null}
@@ -122,6 +134,11 @@ export function AssistantMessage({
   );
   const meta = message ? thread.getMessagesMetadata(message) : undefined;
   const threadInterrupt = thread.interrupt;
+
+  // Check for wizard step data in additional_kwargs
+  const wizardStep = message?.additional_kwargs?.wizard_step as
+    | StepPayload
+    | undefined;
 
   const parentCheckpoint = meta?.firstSeenState?.parent_checkpoint;
   const anthropicStreamedToolCalls = Array.isArray(content)
@@ -185,6 +202,15 @@ export function AssistantMessage({
                 thread={thread}
               />
             )}
+
+            {/* Wizard step form (message-based, not interrupt-based) */}
+            {wizardStep && (
+              <WizardStepMessage
+                stepPayload={wizardStep}
+                isLastMessage={isLastMessage}
+              />
+            )}
+
             <Interrupt
               interrupt={threadInterrupt}
               isLastMessage={isLastMessage}

@@ -3,17 +3,25 @@ import type { ChatAgentStateType } from '../state/chat-agent.state.js';
 /**
  * Chat Input Router
  *
- * Routes requests based on wizardAction.
- * - wizardAction: 'init' → route to wizard subgraph
- * - All other cases → route to chat
- *
- * Note: 'respond' and 'resume' are no longer valid entry points with the interrupt pattern.
- * Resumption happens via Command({ resume }) which continues from the interrupt checkpoint,
- * not through START.
+ * Routes incoming messages to chat or wizard based on:
+ * 1. If last message has wizard_response in additional_kwargs → wizard (user submitted wizard form)
+ * 2. If wizardAction is 'init' or 'resume' → wizard (chat handed off to wizard)
+ * 3. Otherwise → chat
  */
 export const chatInputRouter = (state: ChatAgentStateType): 'chat' | 'wizard' => {
-  if (state.wizardAction === 'init') {
+  const { messages } = state;
+  const lastMessage = messages[messages.length - 1];
+
+  // Check if this is a wizard response from the UI
+  if (lastMessage?.additional_kwargs?.wizard_response) {
     return 'wizard';
   }
+
+  // Check if chat node is handing off to wizard (via startWizard or resumeWizard tool)
+  if (state.wizardAction === 'init' || state.wizardAction === 'resume') {
+    return 'wizard';
+  }
+
+  // Default to chat
   return 'chat';
 };
