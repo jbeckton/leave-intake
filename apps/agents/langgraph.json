@@ -9,5 +9,5 @@
         "example_1": "./src/example-1.ts:graph",
         "example_2": "./src/example-2.ts:graph"
     },
-    "env": ".env"
+    "env": "../../.env"
 }

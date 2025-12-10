@@ -1,6 +1,26 @@
+# Dependencies
+node_modules/
+apps/*/node_modules/
+packages/*/node_modules/
+
+# Environment
+.env
+.env.local
+.env.*.local
 
 # LangGraph API
 .langgraph_api
 
+# Build outputs
+dist/
+*.tsbuildinfo
 
-node_modules
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
