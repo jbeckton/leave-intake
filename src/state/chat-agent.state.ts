@@ -1,5 +1,4 @@
-import { Annotation, messagesStateReducer } from '@langchain/langgraph';
-import { BaseMessage } from '@langchain/core/messages';
+import { Annotation, MessagesAnnotation } from '@langchain/langgraph';
 import type {
   WizardAction,
   InputResponse,
@@ -19,10 +18,11 @@ import type {
  */
 export const ChatAgentState = Annotation.Root({
   // Chat-specific: messages from user
-  messages: Annotation<BaseMessage[]>({
+  /* messages: Annotation<BaseMessage[]>({
     reducer: messagesStateReducer,
     default: () => [],
-  }),
+  }), */
+  ...MessagesAnnotation.spec,
 
   // Wizard keys (shared with wizard subgraph)
   // Input (from invoke) - UI submits minimal InputResponse
