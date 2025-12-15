@@ -103,11 +103,12 @@ const wizardNode = async (state: ChatAgentStateType) => {
   const stepPayload = result.stepPayload;
 
   // Create AI message with wizard step embedded in additional_kwargs
+  // Use empty content for non-complete steps - UI renders form only (no streaming text flash)
   const isComplete = stepPayload?.step?.stepId === 'complete';
   const stepMessage = new AIMessage({
     content: isComplete
       ? 'Your leave request has been submitted successfully!'
-      : `**${stepPayload?.step?.title ?? 'Wizard Step'}**`,
+      : '',
     additional_kwargs: {
       wizard_step: stepPayload,
     },

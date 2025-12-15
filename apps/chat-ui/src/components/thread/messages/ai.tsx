@@ -145,20 +145,30 @@ export function AssistantMessage({
     ? parseAnthropicStreamedToolCalls(content)
     : undefined;
 
-  const hasToolCalls =
-    message &&
-    "tool_calls" in message &&
-    message.tool_calls &&
-    message.tool_calls.length > 0;
+  // Internal tools that should not be rendered in the UI
+  const HIDDEN_TOOL_NAMES = ["getWizardContext", "startWizard", "resumeWizard"];
+
+  // Filter out internal wizard tools from display
+  const visibleToolCalls = message?.tool_calls?.filter(
+    (tc) => !HIDDEN_TOOL_NAMES.includes(tc.name ?? "")
+  );
+  const visibleAnthropicToolCalls = anthropicStreamedToolCalls?.filter(
+    (tc) => !HIDDEN_TOOL_NAMES.includes(tc.name ?? "")
+  );
+
+  const hasToolCalls = visibleToolCalls && visibleToolCalls.length > 0;
   const toolCallsHaveContents =
     hasToolCalls &&
-    message.tool_calls?.some(
+    visibleToolCalls?.some(
       (tc) => tc.args && Object.keys(tc.args).length > 0,
     );
-  const hasAnthropicToolCalls = !!anthropicStreamedToolCalls?.length;
+  const hasAnthropicToolCalls = !!visibleAnthropicToolCalls?.length;
   const isToolResult = message?.type === "tool";
+  const isHiddenToolResult =
+    isToolResult && HIDDEN_TOOL_NAMES.includes((message as any)?.name ?? "");
 
-  if (isToolResult && hideToolCalls) {
+  // Hide tool results for internal tools, or all tool results if hideToolCalls is enabled
+  if (isToolResult && (hideToolCalls || isHiddenToolResult)) {
     return null;
   }
 
@@ -176,7 +186,10 @@ export function AssistantMessage({
           </>
         ) : (
           <>
-            {contentString.length > 0 && (
+            {contentString.length > 0 &&
+              !wizardStep &&
+              // Skip raw JSON/streaming data that leaks through during streaming
+              !contentString.trim().startsWith("{") && (
               <div className="py-1">
                 <MarkdownText>{contentString}</MarkdownText>
               </div>
@@ -185,13 +198,13 @@ export function AssistantMessage({
             {!hideToolCalls && (
               <>
                 {(hasToolCalls && toolCallsHaveContents && (
-                  <ToolCalls toolCalls={message.tool_calls} />
+                  <ToolCalls toolCalls={visibleToolCalls} />
                 )) ||
                   (hasAnthropicToolCalls && (
-                    <ToolCalls toolCalls={anthropicStreamedToolCalls} />
+                    <ToolCalls toolCalls={visibleAnthropicToolCalls} />
                   )) ||
                   (hasToolCalls && (
-                    <ToolCalls toolCalls={message.tool_calls} />
+                    <ToolCalls toolCalls={visibleToolCalls} />
                   ))}
               </>
             )}
@@ -204,18 +217,30 @@ export function AssistantMessage({
             )}
 
             {/* Wizard step form (message-based, not interrupt-based) */}
-            {wizardStep && (
+            {/* Only render when not loading to prevent partial JSON flash during streaming */}
+            {wizardStep && !isLoading && (
               <WizardStepMessage
                 stepPayload={wizardStep}
                 isLastMessage={isLastMessage}
               />
             )}
+            {/* Show loading indicator while wizard step is streaming */}
+            {wizardStep && isLoading && (
+              <div className="flex h-8 items-center gap-1 rounded-2xl bg-blue-50 px-4 py-2">
+                <div className="h-1.5 w-1.5 animate-[pulse_1.5s_ease-in-out_infinite] rounded-full bg-blue-400"></div>
+                <div className="h-1.5 w-1.5 animate-[pulse_1.5s_ease-in-out_0.5s_infinite] rounded-full bg-blue-400"></div>
+                <div className="h-1.5 w-1.5 animate-[pulse_1.5s_ease-in-out_1s_infinite] rounded-full bg-blue-400"></div>
+              </div>
+            )}
 
-            <Interrupt
-              interrupt={threadInterrupt}
-              isLastMessage={isLastMessage}
-              hasNoAIOrToolMessages={hasNoAIOrToolMessages}
-            />
+            {/* Skip interrupt rendering when wizard step is present - they're mutually exclusive */}
+            {!wizardStep && (
+              <Interrupt
+                interrupt={threadInterrupt}
+                isLastMessage={isLastMessage}
+                hasNoAIOrToolMessages={hasNoAIOrToolMessages}
+              />
+            )}
             <div
               className={cn(
                 "mr-auto flex items-center gap-2 transition-opacity",

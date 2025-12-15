@@ -8,7 +8,9 @@
       "WebFetch(domain:github.com)",
       "Bash(bun run typecheck:*)",
       "WebFetch(domain:docs.langchain.com)",
-      "Bash(pnpm agents:typecheck:*)"
+      "Bash(pnpm agents:typecheck:*)",
+      "Bash(pnpm run build)"
     ]
-  }
+  },
+  "outputStyle": "default"
 }

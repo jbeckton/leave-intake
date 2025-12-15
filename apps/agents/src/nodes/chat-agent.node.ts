@@ -120,23 +120,19 @@ Be friendly, professional, and concise. Always personalize your answers when the
     }
 
     // If wizard should start, return state update to trigger wizard init
+    // No message content - wizard form will render directly without text flash
     if (shouldStartWizard) {
-      const handoffMessage = new AIMessage({
-        content: "I'll start the leave request wizard for you now. Please follow the steps to submit your request.",
-      });
       return {
-        messages: [handoffMessage],
+        messages: [],
         wizardAction: 'init' as const,
       };
     }
 
     // If wizard should resume, return state update to trigger wizard with 'resume' action
+    // No message content - wizard form will render directly without text flash
     if (shouldResumeWizard) {
-      const resumeMessage = new AIMessage({
-        content: "Let's continue with your leave request. Here's where you left off:",
-      });
       return {
-        messages: [resumeMessage],
+        messages: [],
         wizardAction: 'resume' as const,
       };
     }
